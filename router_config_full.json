@@ -1,0 +1,138 @@
+{
+  "default_provider": "ollama",
+  "default_model": "odin:latest",
+  "providers": {
+    "ollama": {
+      "base_url": "http://localhost:11434/v1",
+      "api_key_env": null,
+      "models": [
+        {"id": "odin:latest", "label": "Odin (local qwen2 3.1B)", "capabilities": ["chat", "tool"]},
+        {"id": "qwen2.5:3b", "label": "Qwen2.5 3B (local)", "capabilities": ["chat"]}
+      ]
+    },
+    "vultr": {
+      "base_url": "https://api.vultrinference.com/v1",
+      "api_key_env": "VULTR_API_KEY",
+      "models": [
+        {"id": "kimi-k2-0905-preview", "label": "Kimi K2 (tool+reason)", "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "deepseek-r1-0528", "label": "DeepSeek R1", "capabilities": ["chat", "reasoning"]},
+        {"id": "nvidia/llama-3.1-nemotron-ultra-253b-v1", "label": "NVIDIA Nemotron Ultra", "capabilities": ["chat", "reasoning"]},
+        {"id": "mistral-7b-instruct-v0.2", "label": "Mistral 7B", "capabilities": ["chat"]},
+        {"id": "moonshotai/kimi-k2-instruct", "label": "Kimi K2 Instruct", "capabilities": ["chat"]},
+        {"id": "DeepSeek_V4_Flash", "label": "DeepSeek V4 Flash", "capabilities": ["chat", "reasoning"]},
+        {"id": "MiniMaxAI/MiniMax-M2.7", "label": "MiniMax M2.7", "capabilities": ["chat", "tool"]},
+        {"id": "nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16", "label": "Nemotron 3 Nano", "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+    "moonshot": {
+      "base_url": "https://api.moonshot.cn/v1",
+      "api_key_env": "MOONSHOT_API_KEY",
+      "models": [
+        {"id": "moonshot-v1-8k", "label": "Moonshot 8k", "capabilities": ["chat"]},
+        {"id": "moonshot-v1-128k", "label": "Moonshot 128k", "capabilities": ["chat"]},
+        {"id": "kimi-k2-0905-preview", "label": "Kimi K2 (tool)", "capabilities": ["chat", "tool"]},
+        {"id": "kimi-k2-instruct", "label": "Kimi K2 Instruct", "capabilities": ["chat", "tool"]},
+        {"id": "kimi-thinking-preview", "label": "Kimi Thinking", "capabilities": ["chat", "reasoning"]},
+        {"id": "kimi-k2.6-Preview", "label": "Kimi K2.6 Preview", "capabilities": ["chat", "tool"]},
+        {"id": "moonshot-v1-128k-vision-preview", "label": "Moonshot Vision 128k", "capabilities": ["chat", "vision"]}
+      ]
+    },
+    "deepseek": {
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "models": [
+        {"id": "deepseek-chat", "label": "DeepSeek V3", "capabilities": ["chat", "tool"]},
+        {"id": "deepseek-reasoner", "label": "DeepSeek R1 (reason)", "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+    "nvidia": {
+      "base_url": "https://integrate.api.nvidia.com/v1",
+      "api_key_env": "NVIDIA_API_KEY",
+      "models": [
+        {"id": "nvidia/llama-3.1-nemotron-ultra-253b-v1", "label": "Nemotron Ultra (reason)", "capabilities": ["chat", "reasoning"]},
+        {"id": "qwen/qwen3-235b-a22b", "label": "Qwen3 235B (tool+reason)", "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "google/gemma-3-27b-it", "label": "Gemma 3 27B", "capabilities": ["chat"]},
+        {"id": "mistralai/mistral-large-2-instruct", "label": "Mistral Large 2", "capabilities": ["chat", "tool"]},
+        {"id": "moonshotai/kimi-k2.6", "label": "Kimi K2.6 (via NVIDIA)", "capabilities": ["chat", "tool"]},
+        {"id": "qwen/qwen3.5-122b-a10b", "label": "Qwen3.5 122B", "capabilities": ["chat", "tool"]},
+        {"id": "deepseek-ai/deepseek-v4-pro", "label": "DeepSeek V4 Pro", "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+    "google": {
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "api_key_env": "GOOGLE_API_KEY",
+      "models": [
+        {"id": "gemini-2.5-pro-preview-06-05", "label": "Gemini 2.5 Pro", "capabilities": ["chat", "tool", "reasoning", "vision"]},
+        {"id": "gemini-2.0-flash", "label": "Gemini 2.0 Flash", "capabilities": ["chat", "tool", "vision"]},
+        {"id": "gemini-3.1-flash", "label": "Gemini 3.1 Flash", "capabilities": ["chat", "tool", "vision"]}
+      ]
+    },
+    "openai": {
+      "base_url": "https://api.openai.com/v1",
+      "api_key_env": "OPENAI_API_KEY",
+      "models": [
+        {"id": "gpt-4.5-preview", "label": "GPT-4.5", "capabilities": ["chat", "tool"]},
+        {"id": "gpt-4o", "label": "GPT-4o", "capabilities": ["chat", "tool", "vision"]},
+        {"id": "o3", "label": "o3 (reason)", "capabilities": ["chat", "reasoning"]},
+        {"id": "o4-mini", "label": "o4-mini (fast reason)", "capabilities": ["chat", "reasoning"]},
+        {"id": "gpt-4o-mini", "label": "GPT-4o Mini", "capabilities": ["chat", "tool"]}
+      ]
+    },
+    "anthropic": {
+      "base_url": "https://api.anthropic.com/v1",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "models": [
+        {"id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6", "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "claude-opus-4-6", "label": "Claude Opus 4.6", "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5", "capabilities": ["chat", "tool"]},
+        {"id": "claude-opus-4-8", "label": "Claude Opus 4.8", "capabilities": ["chat", "tool", "reasoning"]}
+      ]
+    },
+    "bedrock": {
+      "base_url": "bedrock",
+      "api_key_env": "AWS_ACCESS_KEY_ID",
+      "models": [
+        {"id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "label": "Claude Sonnet 4.5 (Bedrock)", "capabilities": ["chat", "tool"]},
+        {"id": "us.anthropic.claude-sonnet-4-6-20260101-v1:0", "label": "Claude Sonnet 4.6 (Bedrock)", "capabilities": ["chat", "tool", "reasoning"]}
+      ]
+    },
+    "groq": {
+      "base_url": "https://api.groq.com/openai/v1",
+      "api_key_env": "GROQ_API_KEY",
+      "models": [
+        {"id": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B", "capabilities": ["chat", "tool"]},
+        {"id": "deepseek-r1-distill-llama-70b", "label": "DeepSeek R1 Distill", "capabilities": ["chat", "reasoning"]},
+        {"id": "qwen-qwq-32b", "label": "QwQ 32B (reason)", "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+    "openrouter": {
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "models": [
+        {"id": "deepseek/deepseek-r1", "label": "DeepSeek R1 (on-demand)", "capabilities": ["chat", "reasoning"]},
+        {"id": "anthropic/claude-opus-4", "label": "Claude Opus 4 (on-demand)", "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "google/gemini-2.5-pro", "label": "Gemini 2.5 Pro (on-demand)", "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "meta-llama/llama-4-maverick", "label": "Llama 4 Maverick", "capabilities": ["chat", "tool"]},
+        {"id": "qwen/qwen3-235b-a22b", "label": "Qwen3 235B (on-demand)", "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "microsoft/phi-4-reasoning-plus", "label": "Phi-4 Reasoning+", "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+    "minimax": {
+      "base_url": "https://api.minimax.chat/v1",
+      "api_key_env": "MINIMAX_API_KEY",
+      "models": [
+        {"id": "MiniMax-Text-01", "label": "MiniMax Text-01", "capabilities": ["chat", "tool"]},
+        {"id": "abab6.5s-chat", "label": "MiniMax 6.5s", "capabilities": ["chat"]}
+      ]
+    },
+    "fireworks": {
+      "base_url": "https://api.fireworks.ai/inference/v1",
+      "api_key_env": "FIREWORKS_API_KEY",
+      "models": [
+        {"id": "accounts/fireworks/models/qwen3-30b-a3b-thinking-2507", "label": "Qwen3 30B A3B Thinking 2507 (PRIMARY)", "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "accounts/fireworks/models/kimi-k2p7-code", "label": "Kimi K2.7 Code", "capabilities": ["chat", "tool"]},
+        {"id": "accounts/fireworks/models/qwen3p7-plus", "label": "Qwen3.7 Plus", "capabilities": ["chat", "tool"]}
+      ]
+    }
+  }
+}

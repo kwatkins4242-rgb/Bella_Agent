@@ -1,0 +1,11 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+pydantic-settings>=2.2
+httpx>=0.27
+networkx>=3.2
+python-dotenv>=1.0
+
+# Optional but recommended — better entity extraction.
+# If skipped, nlp_pro.py falls back to keyword extraction automatically.
+spacy>=3.7

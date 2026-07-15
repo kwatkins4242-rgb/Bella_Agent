@@ -1,0 +1,89 @@
+{
+  "$schema": "https://jarvis.tech/schemas/providers.schema.json",
+  "version": 1,
+  "active_from_env": "ACTIVE_PROVIDER",
+  "default_provider": "vultr",
+  "providers": {
+    "vultr": {
+      "label": "Vultr Inference",
+      "type": "vultr",
+      "base_url": "https://api.vultrinference.com/v1",
+      "auth": {
+        "header": "Authorization",
+        "prefix": "Bearer ",
+        "env": "VULTR_API_KEY"
+      },
+      "models": {
+        "chat": [
+          "deepseek-ai/deepseek-v3-0324-fast",
+          "kimi/kimi-k2-instruct",
+          "moonshotai/kimi-k2.6"
+        ]
+      },
+      "capabilities": {
+        "chat": true,
+        "vision": false,
+        "tools": false
+      }
+    },
+    "nvidia": {
+      "label": "NVIDIA NIM",
+      "type": "nvidia",
+      "base_url": "https://integrate.api.nvidia.com/v1",
+      "auth": {
+        "header": "Authorization",
+        "prefix": "Bearer ",
+        "env": "NVIDIA_API_KEY"
+      },
+      "models": {
+        "chat": [
+          "nvidia/llama-3.1-nemotron-70b-instruct",
+          "moonshotai/kimi-k2.6"
+        ],
+        "vision": [
+          "nvidia/llama-3.1-nemotron-ultra-253b-v1"
+        ]
+      },
+      "capabilities": {
+        "chat": true,
+        "vision": true,
+        "tools": false
+      }
+    },
+    "elevenlabs": {
+      "label": "ElevenLabs",
+      "type": "elevenlabs",
+      "base_url": "https://api.elevenlabs.io/v1",
+      "auth": {
+        "header": "xi-api-key",
+        "env": "ELEVENLABS_API_KEY"
+      },
+      "models": {
+        "audio": [
+          "eleven_multilingual_v2"
+        ]
+      },
+      "capabilities": {
+        "audio": true
+      }
+    },
+    "ollama": {
+      "name": "Ollama (Local)",
+      "base_url": "http://localhost:11434/v1",
+      "api_key": null,
+      "models": {
+        "odin:latest": {
+          "name": "Odin (Local qwen2 3.1B)",
+          "max_tokens": 32768,
+          "context_window": 32768
+        },
+        "qwen2.5:3b": {
+          "name": "Qwen2.5 3B (Local)",
+          "max_tokens": 32768,
+          "context_window": 32768
+        }
+      },
+      "default_model": "odin:latest"
+    }
+  }
+}

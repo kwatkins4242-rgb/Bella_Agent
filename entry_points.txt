@@ -1,0 +1,2 @@
+[console_scripts]
+bella-memory-cli = bella_memory.cli:main

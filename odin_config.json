@@ -1,0 +1,221 @@
+{
+  "_comment": "ODIN Master Config — set ACTIVE_BRAIN, ACTIVE_REASONING, ACTIVE_FALLBACK to any provider key. Each provider has type, connection, and full model list.",
+
+  "ACTIVE_BRAIN":     "ollama",
+  "ACTIVE_REASONING": "bedrock",
+  "ACTIVE_FALLBACK":  "openrouter",
+
+  "providers": {
+
+    "ollama": {
+      "type": "openai_compat",
+      "base_url": "http://localhost:11434/v1",
+      "base_url_env": "OLLAMA_BASE_URL",
+      "api_key": "ollama",
+      "api_key_env": "OLLAMA_API_KEY",
+      "default_model": "odin:latest",
+      "default_model_env": "OLLAMA_MODEL",
+      "supports_tools": true,
+      "local": true,
+      "models": [
+        {"id": "odin:latest",              "label": "ODIN (fine-tuned qwen2.5-3B)",  "capabilities": ["chat", "tool"]},
+        {"id": "odin_3b1e40b9888a",        "label": "ODIN v2 (alt tag)",             "capabilities": ["chat", "tool"]},
+        {"id": "bella:latest",             "label": "Bella (fine-tuned qwen3-30B)",  "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "qwen2.5:3b",               "label": "Qwen2.5 3B (base)",             "capabilities": ["chat", "tool"]},
+        {"id": "Qwen3-30B-A3B:latest",     "label": "Qwen3-30B-A3B (local)",         "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "qwen2.5-coder:7b",         "label": "Qwen2.5 Coder 7B",              "capabilities": ["chat", "tool"]}
+      ]
+    },
+
+    "gemini": {
+      "type": "openai_compat",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "api_key_env": "GOOGLE_API_KEY",
+      "default_model": "gemini-2.5-flash",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "gemini-2.5-pro-preview-06-05",          "label": "Gemini 2.5 Pro",          "capabilities": ["chat", "tool", "reasoning", "vision"]},
+        {"id": "gemini-2.5-flash",                       "label": "Gemini 2.5 Flash",         "capabilities": ["chat", "tool", "vision"]},
+        {"id": "gemini-2.0-flash-001",                   "label": "Gemini 2.0 Flash",         "capabilities": ["chat", "tool", "vision"]},
+        {"id": "gemini-2.5-flash-lite-preview-06-17",   "label": "Gemini 2.5 Flash Lite",    "capabilities": ["chat", "tool"]}
+      ]
+    },
+
+    "bedrock": {
+      "type": "bedrock",
+      "access_key_env": "AWS_ACCESS_KEY_ID",
+      "secret_key_env": "AWS_SECRET_ACCESS_KEY",
+      "region_env": "AWS_REGION",
+      "default_region": "us-east-1",
+      "default_model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "label": "Claude Sonnet 4.5 (Bedrock)", "capabilities": ["chat", "tool"]},
+        {"id": "us.anthropic.claude-sonnet-4-6-20260101-v1:0", "label": "Claude Sonnet 4.6 (Bedrock)", "capabilities": ["chat", "tool", "reasoning"]}
+      ]
+    },
+
+    "anthropic": {
+      "type": "anthropic",
+      "base_url": "https://api.anthropic.com/v1",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "default_model": "claude-sonnet-4-6",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5",  "capabilities": ["chat", "tool"]},
+        {"id": "claude-sonnet-4-6",         "label": "Claude Sonnet 4.6", "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "claude-opus-4-6",           "label": "Claude Opus 4.6",   "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "claude-opus-4-8",           "label": "Claude Opus 4.8",   "capabilities": ["chat", "tool", "reasoning"]}
+      ]
+    },
+
+    "openrouter": {
+      "type": "openai_compat",
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "default_model": "moonshot/kimi-k2.6",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "moonshot/kimi-k2.6",                  "label": "Kimi K2.6",             "capabilities": ["chat", "tool"]},
+        {"id": "deepseek/deepseek-r1",                "label": "DeepSeek R1",            "capabilities": ["chat", "reasoning"]},
+        {"id": "anthropic/claude-opus-4",             "label": "Claude Opus 4",          "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "google/gemini-2.5-pro",               "label": "Gemini 2.5 Pro",         "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "meta-llama/llama-4-maverick",         "label": "Llama 4 Maverick",       "capabilities": ["chat", "tool"]},
+        {"id": "qwen/qwen3-235b-a22b",                "label": "Qwen3 235B",             "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "microsoft/phi-4-reasoning-plus",      "label": "Phi-4 Reasoning+",       "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+
+    "vultr": {
+      "type": "openai_compat",
+      "base_url": "https://api.vultrinference.com/v1",
+      "base_url_env": "VULTR_BASE_URL",
+      "api_key_env": "VULTR_API_KEY",
+      "default_model": "moonshotai/kimi-k2-instruct",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "moonshotai/kimi-k2-instruct",                     "label": "Kimi K2 Instruct",       "capabilities": ["chat", "tool"]},
+        {"id": "kimi-k2-0905-preview",                            "label": "Kimi K2 Preview",        "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "deepseek-r1-0528",                                "label": "DeepSeek R1",            "capabilities": ["chat", "reasoning"]},
+        {"id": "nvidia/llama-3.1-nemotron-ultra-253b-v1",         "label": "NVIDIA Nemotron Ultra",  "capabilities": ["chat", "reasoning"]},
+        {"id": "mistral-7b-instruct-v0.2",                        "label": "Mistral 7B",             "capabilities": ["chat"]},
+        {"id": "DeepSeek_V4_Flash",                               "label": "DeepSeek V4 Flash",      "capabilities": ["chat", "reasoning"]},
+        {"id": "MiniMaxAI/MiniMax-M2.7",                          "label": "MiniMax M2.7",           "capabilities": ["chat", "tool"]},
+        {"id": "nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16", "label": "Nemotron 3 Nano",   "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+
+    "nvidia": {
+      "type": "openai_compat",
+      "base_url": "https://integrate.api.nvidia.com/v1",
+      "base_url_env": "NVIDIA_BASE_URL",
+      "api_key_env": "NVIDIA_API_KEY",
+      "default_model": "qwen/qwen3-235b-a22b",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "nvidia/llama-3.1-nemotron-ultra-253b-v1",          "label": "Nemotron Ultra",       "capabilities": ["chat", "reasoning"]},
+        {"id": "qwen/qwen3-235b-a22b",                             "label": "Qwen3 235B",           "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "qwen/qwen3.5-122b-a10b",                           "label": "Qwen3.5 122B",         "capabilities": ["chat", "tool"]},
+        {"id": "moonshotai/kimi-k2.6",                             "label": "Kimi K2.6",            "capabilities": ["chat", "tool"]},
+        {"id": "mistralai/mistral-large-2-instruct",               "label": "Mistral Large 2",      "capabilities": ["chat", "tool"]},
+        {"id": "google/gemma-3-27b-it",                            "label": "Gemma 3 27B",          "capabilities": ["chat"]},
+        {"id": "deepseek-ai/deepseek-v4-pro",                      "label": "DeepSeek V4 Pro",      "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+
+    "groq": {
+      "type": "openai_compat",
+      "base_url": "https://api.groq.com/openai/v1",
+      "base_url_env": "GROQ_BASE",
+      "api_key_env": "GROQ_API_KEY",
+      "default_model": "llama-3.3-70b-versatile",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "llama-3.3-70b-versatile",        "label": "Llama 3.3 70B",      "capabilities": ["chat", "tool"]},
+        {"id": "deepseek-r1-distill-llama-70b",  "label": "DeepSeek R1 Distill","capabilities": ["chat", "reasoning"]},
+        {"id": "qwen-qwq-32b",                   "label": "QwQ 32B",            "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+
+    "moonshot": {
+      "type": "openai_compat",
+      "base_url": "https://api.moonshot.cn/v1",
+      "base_url_env": "MOONSHOT_BASE_URL",
+      "api_key_env": "MOONSHOT_API_KEY",
+      "default_model": "kimi-k2.6-Preview",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "kimi-k2.6-Preview",              "label": "Kimi K2.6 Preview",   "capabilities": ["chat", "tool"]},
+        {"id": "kimi-k2-0905-preview",           "label": "Kimi K2 Preview",     "capabilities": ["chat", "tool", "reasoning"]},
+        {"id": "kimi-k2-instruct",               "label": "Kimi K2 Instruct",    "capabilities": ["chat", "tool"]},
+        {"id": "kimi-thinking-preview",          "label": "Kimi Thinking",       "capabilities": ["chat", "reasoning"]},
+        {"id": "moonshot-v1-8k",                 "label": "Moonshot 8k",         "capabilities": ["chat"]},
+        {"id": "moonshot-v1-128k",               "label": "Moonshot 128k",       "capabilities": ["chat"]},
+        {"id": "moonshot-v1-128k-vision-preview","label": "Moonshot Vision 128k","capabilities": ["chat", "vision"]}
+      ]
+    },
+
+    "deepseek": {
+      "type": "openai_compat",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "default_model": "deepseek-chat",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "deepseek-chat",     "label": "DeepSeek V3",        "capabilities": ["chat", "tool"]},
+        {"id": "deepseek-reasoner", "label": "DeepSeek R1 (reason)","capabilities": ["chat", "reasoning"]}
+      ]
+    },
+
+    "openai": {
+      "type": "openai_compat",
+      "base_url": "https://api.openai.com/v1",
+      "api_key_env": "OPENAI_API_KEY",
+      "default_model": "gpt-4o",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "gpt-4o",           "label": "GPT-4o",          "capabilities": ["chat", "tool", "vision"]},
+        {"id": "gpt-4o-mini",      "label": "GPT-4o Mini",     "capabilities": ["chat", "tool"]},
+        {"id": "gpt-4.5-preview",  "label": "GPT-4.5",         "capabilities": ["chat", "tool"]},
+        {"id": "o3",               "label": "o3 (reason)",      "capabilities": ["chat", "reasoning"]},
+        {"id": "o4-mini",          "label": "o4-mini",          "capabilities": ["chat", "reasoning"]}
+      ]
+    },
+
+    "fireworks": {
+      "type": "openai_compat",
+      "base_url": "https://api.fireworks.ai/inference/v1",
+      "api_key_env": "FIREWORKS_API_KEY",
+      "default_model": "accounts/fireworks/models/kimi-k2-instruct",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "accounts/fireworks/models/kimi-k2-instruct",      "label": "Kimi K2 Instruct",  "capabilities": ["chat", "tool"]},
+        {"id": "accounts/fireworks/models/deepseek-r1",           "label": "DeepSeek R1",        "capabilities": ["chat", "reasoning"]},
+        {"id": "accounts/fireworks/models/qwen3-235b-a22b",       "label": "Qwen3 235B",         "capabilities": ["chat", "tool", "reasoning"]}
+      ]
+    },
+
+    "lightningai": {
+      "type": "openai_compat",
+      "base_url": "https://lightning.ai/api/v1",
+      "api_key_env": "LIGHTNINGAI_API_KEY",
+      "default_model": "lightning-ai/deepseek-v4-pro",
+      "supports_tools": true,
+      "local": false,
+      "models": [
+        {"id": "lightning-ai/deepseek-v4-pro", "label": "DeepSeek V4 Pro", "capabilities": ["chat", "reasoning"]}
+      ]
+    }
+  }
+}

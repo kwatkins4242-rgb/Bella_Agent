@@ -1,0 +1,80 @@
+{
+  "$schema": "https://jarvis.tech/schemas/router.schema.json",
+  "version": 1,
+  "description": "BELLA Multi-Provider Router Configuration - Fireworks Qwen3 30B A3B Thinking 2507 Primary",
+  "routing_rules": {
+    "reasoning": {
+      "provider": "fireworks",
+      "model": "accounts/fireworks/models/qwen3-30b-a3b-thinking-2507",
+      "description": "Deep reasoning with Fireworks Qwen3 30B A3B Thinking 2507"
+    },
+    "reasoning_fallback": {
+      "provider": "nvidia",
+      "model": "moonshotai/kimi-k2.6",
+      "description": "Premium reasoning fallback with NVIDIA Kimi"
+    },
+    "tool_call": {
+      "provider": "fireworks",
+      "model": "accounts/fireworks/models/qwen3-30b-a3b-thinking-2507",
+      "description": "Tool calling via Fireworks with reasoning support"
+    },
+    "brain": {
+      "provider": "fireworks",
+      "model": "accounts/fireworks/models/qwen3-30b-a3b-thinking-2507",
+      "description": "Primary brain/chat via Fireworks Qwen3 30B A3B Thinking"
+    },
+    "brain_fallback": {
+      "provider": "vultr",
+      "model": "moonshotai/kimi-k2.6",
+      "description": "Chat fallback to Vultr Kimi"
+    },
+    "chat_fallback": {
+      "provider": "nvidia",
+      "model": "moonshotai/kimi-k2.6",
+      "description": "Secondary fallback chat via NVIDIA Kimi"
+    },
+    "vision": {
+      "provider": "nvidia",
+      "model": "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+      "description": "Image analysis and vision tasks"
+    },
+    "vision_fallback": {
+      "provider": "nvidia",
+      "model": "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+      "description": "Fallback vision"
+    },
+    "voice": {
+      "provider": "elevenlabs",
+      "model": "eleven_multilingual_v2",
+      "description": "Text-to-speech voice generation"
+    }
+  },
+  "fallback_chain": [
+    "fireworks",
+    "vultr",
+    "nvidia",
+    "ollama"
+  ],
+  "cost_priority": {
+    "free_tier": [
+      "ollama"
+    ],
+    "low_cost": [
+      "vultr",
+      "nvidia"
+    ],
+    "moderate": [
+      "fireworks"
+    ],
+    "premium": [
+      "elevenlabs"
+    ]
+  },
+  "provider_notes": {
+    "fireworks": "Qwen3 30B A3B Thinking 2507 - PRIMARY trained model via Fireworks API",
+    "vultr": "Kimi k2.6 direct from Vultr - Secondary",
+    "nvidia": "Kimi k2.6 deployed on NVIDIA NIM - Fallback",
+    "ollama": "Gwen (Qwen 2.5 3B) - Local option",
+    "elevenlabs": "Voice/TTS"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "created": "2026-07-12T21:24:34.969809",
+  "last_updated": "2026-07-12T21:24:34.969827",
+  "owner": "Keith Watkins",
+  "about_keith": [
+    "Name: Keith Watkins",
+    "Prefers to be called: Keith",
+    "Building: Bella AI Assistant"
+  ],
+  "current_focus": [
+    "Fixing Bella's memory system",
+    "Deploying to VPS at 45.76.238.174"
+  ],
+  "important_facts": [
+    "Bella runs on port 3000",
+    "VPS location: /opt/Bella",
+    "Memory system uses adaptive backend (MongoDB -> File fallback)"
+  ],
+  "reminders": [],
+  "preferences": [
+    "Be direct and concise",
+    "No unnecessary emojis",
+    "Focus on getting things done"
+  ],
+  "wins": [],
+  "open_questions": [],
+  "notes_to_self": [
+    "Always read this purse file on startup",
+    "Update this file when learning important new information",
+    "Keep it clean - delete outdated info"
+  ]
+}

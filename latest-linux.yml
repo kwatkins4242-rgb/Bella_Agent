@@ -1,0 +1,9 @@
+version: 1.0.0
+files:
+  - url: BELLA-AI-Studio-1.0.0.AppImage
+    sha512: SUopUjzQFpwg1ckV2CVx3D7vBXouWG05jUkLZHgcq3g03YpsR93dVnBC9doW/x8GtXFNiCF+058KcF08elI4Pg==
+    size: 125684824
+    blockMapSize: 134252
+path: BELLA-AI-Studio-1.0.0.AppImage
+sha512: SUopUjzQFpwg1ckV2CVx3D7vBXouWG05jUkLZHgcq3g03YpsR93dVnBC9doW/x8GtXFNiCF+058KcF08elI4Pg==
+releaseDate: '2026-06-06T19:54:19.818Z'

@@ -1,0 +1,77 @@
+{
+  "_note": "This is injected at the start of every session. Non-sensitive identity only — no SSNs, no full addresses, no API keys. Edit whenever something durable about Keith changes.",
+
+  "name": "Charles Keith Watkins",
+  "goes_by": "Keith",
+  "location": "Weatherford, Texas",
+  "timezone": "CST/CDT (America/Chicago)",
+
+  "businesses": [
+    {
+      "name": "Watkins Construction",
+      "type": "residential/commercial contractor",
+      "services": ["framing", "drywall", "tile", "remodeling", "garage conversions"],
+      "notes": "Active contract work, bread and butter income while AI ventures scale"
+    },
+    {
+      "name": "ODIN Industries LLC",
+      "type": "personal AI infrastructure and software venture",
+      "goal": "Build and monetize a sovereign multi-agent AI stack — never dependent on one provider or platform",
+      "domains": ["ironmanjarvis.com", "ironmanjarvis.store", "ironmanjarvis.org", "ironmanjarvis.online", "techhack101.online", "techhack101.org"]
+    }
+  ],
+
+  "background": {
+    "career": "~15 years CMT (construction materials testing) and tarmac/asphalt engineering",
+    "transition": "Self-taught software developer, aggressively transitioning into AI integration development",
+    "learning_style": "Learns by doing, not reading or watching. Hands-on. Catches errors fast. Needs direct, blunt feedback."
+  },
+
+  "communication_style": {
+    "prefers": "Direct, blunt, no fluff. Get to the point. Don't encourage when the answer is wrong.",
+    "hates": "Filler phrases, over-explaining the obvious, being handled with kid gloves",
+    "tone_back": "Match his energy — direct and confident, not corporate",
+    "typos_ok": "Keith types fast and often has typos — understand intent, don't get hung up on spelling"
+  },
+
+  "current_focus": [
+    "ODIN + Bella dual-agent AI stack with persistent multi-layer memory",
+    "Provider-agnostic AI router — swap models without touching agent code",
+    "Jarvis Mega Dashboard — single-pane control of all AI providers and agents",
+    "Memory Pro integration — 4-layer memory (raw, long-term, knowledge graph, summaries)",
+    "Construction contract work via Watkins Construction (ongoing)"
+  ],
+
+  "infrastructure": {
+    "local_machine": "Linux workstation (Fedora), running Ollama locally",
+    "cloud": "AWS EC2 (two instances: IronManJarvis + ODIN1), MongoDB Atlas (Cluster0), Azure AI",
+    "tailscale": "Used for VPN mesh between machines",
+    "ollama_models": ["odin:latest", "bella:latest", "Qwen3-30B-A3B", "qwen2.5-coder:7b"],
+    "active_ports": {
+      "8000": "ODIN Core (FastAPI backend)",
+      "8010": "Memory Pro (FastAPI memory service)",
+      "8080": "MCP server",
+      "8099": "Bridge",
+      "3099": "Proxy",
+      "5678": "n8n workflows"
+    }
+  },
+
+  "projects_stack": {
+    "backend": "Python FastAPI (main.py) — port 8000",
+    "memory": "Python FastAPI (memory_pro/main.py) — port 8010",
+    "dashboard": "jarvis_mega.html — single HTML file, served from backend or opened direct",
+    "config": "config.json (root) + odin_config.json — never hardcode provider names in code",
+    "providers_wired": ["ollama", "gemini", "bedrock", "openrouter", "nvidia", "groq", "azure", "anthropic", "openai", "fireworks", "moonshot"]
+  },
+
+  "personal": {
+    "dogs": [
+      {"name": "Bella", "breed": "unknown, rescued", "notes": "The name 'Bella' for the AI companion was inspired by Keith's dog"},
+      {"name": "Odin", "breed": "unknown, rescued", "notes": "The name 'ODIN' for the AI executor was inspired by Keith's dog"}
+    ],
+    "values": "Self-reliance, building things that last, not depending on any single company or platform"
+  },
+
+  "last_updated": "2026-07-06"
+}

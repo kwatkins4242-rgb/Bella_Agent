@@ -1,0 +1,21 @@
+/home/kwatk/AI/projects/Bella/dashboard_server.py:76: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+INFO:     Started server process [189199]
+INFO:     Waiting for application startup.
+INFO:__main__:============================================================
+INFO:__main__:🏢 ODIN INDUSTRIES DASHBOARD
+INFO:__main__:============================================================
+INFO:__main__:Port: 8001
+INFO:__main__:Dashboard: http://localhost:8001
+INFO:__main__:Shell: http://localhost:8001/shell
+INFO:__main__:============================================================
+INFO:     Application startup complete.
+ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [180754]

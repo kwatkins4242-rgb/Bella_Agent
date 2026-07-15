@@ -1,0 +1,20 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.techhack101.bella
+productName: BELLA AI Studio
+files:
+  - filter:
+      - electron.js
+      - preload.js
+      - server.js
+      - proxy.js
+      - static/**/*
+      - package.json
+mac:
+  target: dmg
+win:
+  target: nsis
+linux:
+  target: AppImage
+electronVersion: 42.3.3

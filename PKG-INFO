@@ -1,3 +1,32 @@
+Metadata-Version: 2.4
+Name: bella-memory
+Version: 0.1.0
+Summary: A comprehensive, drop-in memory layer for AI projects. LangChain-style memory abstractions with local-first persistence.
+Author-email: Charles Watkins / Bella Memory <dev@techhack101.com>
+License: MIT
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.0
+Requires-Dist: requests>=2.28
+Requires-Dist: numpy>=1.24
+Requires-Dist: redis>=5.0
+Requires-Dist: networkx>=3.0
+Requires-Dist: scikit-learn>=1.3
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21; extra == "dev"
+Requires-Dist: httpx>=0.24; extra == "dev"
+Requires-Dist: fastapi>=0.100; extra == "dev"
+Requires-Dist: uvicorn>=0.23; extra == "dev"
+
 # Bella Memory
 
 A comprehensive, drop-in memory layer for AI projects. It mirrors the core memory
