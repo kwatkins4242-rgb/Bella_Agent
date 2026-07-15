@@ -1,0 +1,46 @@
+{
+  "storage_path": "./bella_memory_data",
+  "memory_type": "combined",
+  "checkpoint_enabled": true,
+  "llm": {
+    "model": "llama3.1:8b",
+    "base_url": "http://100.58.95.110:11434",
+    "temperature": 0.2,
+    "max_tokens": 4096
+  },
+  "memories": [
+    {
+      "type": "buffer_window",
+      "kwargs": {
+        "k": 5,
+        "memory_key": "recent_history",
+        "human_prefix": "Charles",
+        "ai_prefix": "Bella"
+      }
+    },
+    {
+      "type": "summary",
+      "kwargs": {
+        "memory_key": "summary",
+        "human_prefix": "Charles",
+        "ai_prefix": "Bella"
+      }
+    },
+    {
+      "type": "entity",
+      "kwargs": {
+        "memory_key": "entity_history",
+        "human_prefix": "Charles",
+        "ai_prefix": "Bella"
+      }
+    },
+    {
+      "type": "kg",
+      "kwargs": {
+        "memory_key": "kg_history",
+        "human_prefix": "Charles",
+        "ai_prefix": "Bella"
+      }
+    }
+  ]
+}

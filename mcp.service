@@ -1,0 +1,18 @@
+[Unit]
+Description=Bella MCP Tool Server
+After=network.target mongod.service
+
+[Service]
+Type=simple
+User=linuxuser
+WorkingDirectory=/home/linuxuser/bella
+EnvironmentFile=/home/linuxuser/bella/.env
+ExecStart=/home/linuxuser/bella/venv/bin/python mcp_server.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bella-mcp
+
+[Install]
+WantedBy=multi-user.target

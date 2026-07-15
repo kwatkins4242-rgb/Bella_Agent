@@ -1,0 +1,10 @@
+feat(gcp): Qwen3-30B GPU VM deployment + n8n workflow importer
+
+- gcp/setup_gpu_vm.sh: Creates T4 GPU VM, firewall rules, auto-updates .env with IP
+- gcp/startup_script.sh: VM cloud-init — CUDA, Ollama, Qwen3-30B-A3B Q4_K_M pull, n8n
+- gcp/import_n8n_workflows.py: Imports all 4 Bella workflows via n8n REST API
+- gcp/update_config_for_gcp.py: Adds gcp_ollama provider to config.json at runtime
+- gcp/README.md: Full deployment guide with cost control tips
+
+Model: qwen3:30b-a3b-q4_K_M (MoE, 3B active params, fits T4 16GB)
+n8n: bella-feed-memory, bella-session-start, bella-purse-sync workflows

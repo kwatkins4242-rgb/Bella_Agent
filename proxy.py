@@ -14,7 +14,16 @@ One proxy that does three jobs:
 Provider-agnostic: backend is fully driven by env vars (BACKEND_URL,
 BACKEND_API_KEY, BACKEND_MODEL).
 
-Run: python proxy.py
+Run: pip install fastapi
+pip install uvicorn[standard]
+pip install httpx
+pip install pydantic
+pip install pydantic-settings
+pip install python-dotenv
+pip install langchain-openai
+pip install langchain-core
+pip install motor
+
 """
 
 import os
@@ -22,6 +31,7 @@ import re
 import json
 import logging
 from datetime import datetime
+from pathlib import Path
 
 import httpx
 import uvicorn
@@ -30,23 +40,21 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-load_dotenv(os.path.expanduser("~/Env/ENV"))
+load_dotenv(os.path.expanduser("~/env/ENV"))
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("odin-proxy")
 
-# ── CONFIG ───────────────────────────────────────────────────────────────────
 PORT             = int(os.getenv("PROXY_PORT", "3099"))
-INJECT_PATH      = os.getenv("ODIN_INJECT_PATH", os.path.expanduser("~/MCP/odin_inject.md"))
-ODIN_HOST        = os.getenv("ODIN_HOST", "")
+INJECT_PATH      = os.getenv("ODIN_INJECT_PATH", str(Path(__file__).parent / "odin_inject.md"))
+ODIN_HOST        = os.getenv("ODIN_HOST", "127.0.0.1")
 BRIDGE_PORT      = int(os.getenv("BRIDGE_PORT", "8099"))
-BRIDGE_KEY       = os.getenv("MCP_API_KEY", "")
+BRIDGE_KEY       = os.getenv("MCP_API_KEY", os.getenv("BRIDGE_KEY", ""))
 MAX_TOOL_LOOPS   = int(os.getenv("ODIN_MAX_TOOL_LOOPS", "8"))
-
-BACKEND_URL      = os.getenv("BACKEND_URL", "")
+BACKEND_URL      = os.getenv("BACKEND_URL", "http://127.0.0.1:8000/v1/chat/completions")
 BACKEND_API_KEY  = os.getenv("BACKEND_API_KEY", "")
-BACKEND_MODEL    = os.getenv("BACKEND_MODEL", "")
+BACKEND_MODEL    = os.getenv("BACKEND_MODEL", "kimi-k2.6:cloud")
 
 if not BRIDGE_KEY:
     logger.warning("MCP_API_KEY not set — bridge calls will be unauthenticated and likely fail")

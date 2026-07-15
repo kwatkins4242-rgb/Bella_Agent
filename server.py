@@ -1,666 +1,547 @@
-#!/usr/bin/env python3
 """
-BELLA — Unified Python Server
-==============================
-Replaces Node.js server.js
-Serves dashboards, proxies to backends, handles WebSocket
+FAST MCP Server — Professional Build
+~/MCP/server.py
 
-Run: python server.py
+Loads from ~/env/ENV automatically.
+Start: python server.py          → stdio (default)
+       python server.py stdio    → stdio
+       python server.py http     → HTTP on MCP_PORT (default 8080)
+       python server.py http --port 8080
 """
 
-import os
-import sys
-import json
-import asyncio
-import logging
-from pathlib import Path
+import os, json, logging, httpx, subprocess, platform, shlex
 from datetime import datetime
-from typing import Dict, Any, Optional, Set
-from dataclasses import dataclass, field, asdict
-
-# FastAPI imports
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import uvicorn
-
-# HTTP client for proxying
-import httpx
-
-# WebSocket handling
-from websockets.exceptions import ConnectionClosed
-
-# Load environment
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
+from fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger("bella_server")
+# ── ENV ──────────────────────────────────────────────────────────────────────
+load_dotenv(os.path.expanduser("~/env/ENV"))
 
-# Configuration
-DASHBOARDS = int(os.getenv("PORT", 3100))
-ROUTER     = int(os.getenv("ROUTER", 5000))
-M_INJECT   = int(os.getenv("PROXY_PORT",8765))
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("fast-mcp")
 
-PROXY_PORT = int(os.getenv("PROXY_PORT", 3099))
-BRIDGE_PORT= int(os.getenv("BRIDGE_PORT", 8099))
-MCP_PORT   = int(os.getenv("MCP_PORT", 8080))
+# ── CONFIG ───────────────────────────────────────────────────────────────────
+MCP_PORT         = int(os.getenv("MCP_PORT",     "8080"))
+ODIN_BRIDGE_URL  = os.getenv("BRIDGE_URL",        "http://127.0.0.1:8099")
+ODIN_BRIDGE_KEY  = os.getenv("MCP_API_KEY",      os.getenv("BRIDGE_KEY", "BELLA_2026_BRIDGE_KEY"))
+ODIN_CORE_URL    = os.getenv("ODIN_CORE_URL",    "http://127.0.0.1:8001")
+BELLA_URL        = os.getenv("MEMORY_API_URL",   "http://127.0.0.1:8005")
+MONGO_URI        = os.getenv("MONGO_URI",        "mongodb://localhost:27017")
+N8N_WEBHOOK_URL  = os.getenv("N8N_WEBHOOK_URL",  "http://127.0.0.1:5678/webhook")
+N8N_API_KEY      = os.getenv("N8N_API_KEY",      "")
 
-BRAIN_PORT = int(os.getenv("BRAIN_PORT", 8000))
-NODE_PORT  = int(os.getenv("TOOLS", 8000))
-PARCER_PORT= int(os.getenv("LOOP", 8000))
+mcp = FastMCP(name="FAST-MCP")
 
-# Ensure directories exist
-LOGS_DIR = mkdir(parents=True, exist_ok=True)
+# Legacy root-level HTTP endpoints that the rest of the stack expects.
+# FastMCP 3.x owns the HTTP server, so we register these via custom_route.
+@mcp.custom_route("/health", methods=["GET"])
+async def legacy_health(request):
+    return JSONResponse({"status": "ok", "service": "fast-mcp", "version": "3.4.4"})
 
-# =============================================================================
-# PERMISSION GATE SYSTEM
-# =============================================================================
-
-@dataclass
-class PermissionRequest:
-    """A permission request waiting for approval"""
-    id: str
-    type: str
-    details: str
-    data: Dict[str, Any]
-    timestamp: str
-    status: str = "pending"
-    deny_reason: Optional[str] = None
-    resolved_at: Optional[str] = None
-
-
-class PermissionGate:
-    """Manages permission requests for file writes and shell commands"""
-    
-    def __init__(self):
-        self.pending: Dict[str, PermissionRequest] = {}
-        self.approved: Set[str] = set()
-        self.denied: Set[str] = set()
-        self._log_file = LOGS_DIR / "permissions.log"
-    
-    def _log(self, action: str, request_id: str, details: str, approved: bool):
-        """Log permission action"""
-        timestamp = datetime.utcnow().isoformat()
-        status = "APPROVED" if approved else "DENIED"
-        log_entry = f"[{timestamp}] {status} | {action} | {request_id} | {details}\n"
-        
-        with open(self._log_file, "a") as f:
-            f.write(log_entry)
-    
-    async def request(self, action_type: str, details: str, data: Dict[str, Any] = None) -> str:
-        """Request permission for an action"""
-        import hashlib
-        
-        request_id = f"req_{int(datetime.utcnow().timestamp() * 1000)}_{hashlib.md5(os.urandom(8)).hexdigest()[:8]}"
-        
-        req = PermissionRequest(
-            id=request_id,
-            type=action_type,
-            details=details,
-            data=data or {},
-            timestamp=datetime.utcnow().isoformat(),
-            status="pending"
-        )
-        
-        self.pending[request_id] = req
-        
-        # Broadcast to all WebSocket clients
-        await self._broadcast({
-            "type": "permission_request",
-            "request": asdict(req)
+@mcp.custom_route("/tools", methods=["GET"])
+async def legacy_list_tools(request):
+    tools = []
+    registered = await mcp.list_tools()
+    for tool in registered:
+        tools.append({
+            "name": getattr(tool, "name", "unknown"),
+            "description": getattr(tool, "description", "") or "",
+            "parameters": getattr(tool, "parameters", {}) if getattr(tool, "parameters", None) else {},
         })
-        
-        logger.info(f"[PERMISSION] Requested [{request_id}]: {action_type} - {details}")
-        return request_id
-    
-    async def approve(self, request_id: str) -> bool:
-        """Approve a permission request"""
-        if request_id not in self.pending:
-            return False
-        
-        req = self.pending[request_id]
-        req.status = "approved"
-        req.resolved_at = datetime.utcnow().isoformat()
-        
-        self.approved.add(request_id)
-        del self.pending[request_id]
-        
-        self._log(req.type, request_id, req.details, True)
-        
-        await self._broadcast({
-            "type": "permission_approved",
-            "request_id": request_id
-        })
-        
-        return True
-    
-    async def deny(self, request_id: str, reason: str = "User denied") -> bool:
-        """Deny a permission request"""
-        if request_id not in self.pending:
-            return False
-        
-        req = self.pending[request_id]
-        req.status = "denied"
-        req.deny_reason = reason
-        req.resolved_at = datetime.utcnow().isoformat()
-        
-        self.denied.add(request_id)
-        del self.pending[request_id]
-        
-        self._log(req.type, request_id, f"{req.details} | Reason: {reason}", False)
-        
-        await self._broadcast({
-            "type": "permission_denied",
-            "request_id": request_id,
-            "reason": reason
-        })
-        
-        return True
-    
-    def is_approved(self, request_id: str) -> bool:
-        """Check if request was approved"""
-        return request_id in self.approved
-    
-    def get_pending(self) -> list:
-        """Get list of pending requests"""
-        return [asdict(r) for r in self.pending.values() if r.status == "pending"]
-    
-    async def _broadcast(self, message: Dict):
-        """Broadcast message to all WebSocket clients"""
-        # This will be set by the WebSocket manager
-        if hasattr(self, '_ws_manager'):
-            await self._ws_manager.broadcast(message)
+    return JSONResponse({"tools": tools})
 
-
-# Global permission gate
-permission_gate = PermissionGate()
-
-# =============================================================================
-# WEBSOCKET MANAGER
-# =============================================================================
-
-class WebSocketManager:
-    """Manages WebSocket connections"""
-    
-    def __init__(self):
-        self.connections: Set[WebSocket] = set()
-    
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.connections.add(websocket)
-        logger.info(f"[WS] Client connected. Total: {len(self.connections)}")
-        
-        # Send welcome message
-        await websocket.send_json({
-            "type": "connected",
-            "message": "BELLA WebSocket connected",
-            "timestamp": datetime.utcnow().isoformat()
-        })
-    
-    def disconnect(self, websocket: WebSocket):
-        self.connections.discard(websocket)
-        logger.info(f"[WS] Client disconnected. Total: {len(self.connections)}")
-    
-    async def broadcast(self, message: Dict):
-        """Broadcast message to all connected clients"""
-        disconnected = set()
-        
-        for ws in self.connections:
-            try:
-                await ws.send_json(message)
-            except Exception:
-                disconnected.add(ws)
-        
-        # Clean up disconnected
-        for ws in disconnected:
-            self.connections.discard(ws)
-    
-    async def send_personal(self, websocket: WebSocket, message: Dict):
-        """Send message to specific client"""
-        try:
-            await websocket.send_json(message)
-        except Exception:
-            self.disconnect(websocket)
-
-
-# Global WebSocket manager
-ws_manager = WebSocketManager()
-permission_gate._ws_manager = ws_manager
-
-# =============================================================================
-# FASTAPI APP
-# =============================================================================
-
-app = FastAPI(title="BELLA Server", version="2.0.0")
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Static files
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-# =============================================================================
-# HEALTH CHECK
-# =============================================================================
-
-async def check_python_backend() -> str:
-    """Check if Python backend is running"""
+@mcp.custom_route("/execute", methods=["POST"])
+async def legacy_execute(request):
+    body = await request.json()
+    tool_name = body.get("tool") or body.get("name")
+    params = body.get("params") or body.get("arguments") or {}
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            resp = await client.get(f"http://localhost:{PYTHON_PORT}/health")
-            return "online" if resp.status_code == 200 else "error"
-    except Exception:
-        return "offline"
+        result = await mcp.call_tool(tool_name, params)
+        text_parts = []
+        for c in getattr(result, "content", []) or []:
+            text_parts.append(getattr(c, "text", ""))
+        return JSONResponse({"tool": tool_name, "result": "\n".join(text_parts)})
+    except Exception as e:
+        logger.error(f"Tool {tool_name} failed: {e}")
+        return JSONResponse({"tool": tool_name, "error": str(e)}, status_code=500)
 
+# Remove unused separate FastAPI app and starlette imports.
+# http_app = FastAPI()  # no longer needed; routes registered on mcp directly.
 
-async def check_proxy() -> str:
-    """Check if proxy is running"""
-    try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            resp = await client.get(f"http://localhost:{PROXY_PORT}/health")
-            return "online" if resp.status_code == 200 else "error"
-    except Exception:
-        return "offline"
-
-
-async def check_mcp() -> str:
-    """Check if MCP server is running"""
-    try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            resp = await client.get(f"http://localhost:{MCP_PORT}/health")
-            return "online" if resp.status_code == 200 else "error"
-    except Exception:
-        return "offline"
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
+# ── HELPERS ──────────────────────────────────────────────────────────────────
+def _bh():
     return {
-        "status": "online",
-        "service": "BELLA Python Server",
-        "timestamp": datetime.utcnow().isoformat(),
-        "python_backend": await check_python_backend(),
-        "proxy": await check_proxy(),
-        "mcp": await check_mcp(),
-        "websocket_clients": len(ws_manager.connections)
+        "X-API-Key":    ODIN_BRIDGE_KEY,
+        "X-ODIN-KEY":   ODIN_BRIDGE_KEY,
+        "Content-Type": "application/json",
     }
 
+def _bella_headers():
+    return {
+        "X-API-Key":   os.getenv("BELLA_API_KEY", "bella-keith-private-2026"),
+        "Content-Type": "application/json",
+    }
 
-# =============================================================================
-# MAIN ROUTES
-# =============================================================================
+async def _bridge(endpoint: str, body: dict, timeout: int = 60) -> dict:
+    async with httpx.AsyncClient(timeout=timeout) as c:
+        r = await c.post(f"{ODIN_BRIDGE_URL}{endpoint}", headers=_bh(), json=body)
+        r.raise_for_status()
+        return r.json()
 
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    """Serve main dashboard"""
-    # Serve shell/odin dashboard
-    shell_file = STATIC_DIR / "shell" / "shell.html"
-    if shell_file.exists():
-        return FileResponse(shell_file)
+async def _bella(method: str, endpoint: str, body: dict = None, params: dict = None, timeout: int = 30):
+    async with httpx.AsyncClient(timeout=timeout) as c:
+        if method == "GET":
+            r = await c.get(f"{BELLA_URL}{endpoint}", headers=_bella_headers(), params=params)
+        else:
+            r = await c.post(f"{BELLA_URL}{endpoint}", headers=_bella_headers(), json=body or {})
+        r.raise_for_status()
+        return r.json()
 
-    # Fallback HTML
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head><title>BELLA Dashboard</title></head>
-    <body style="background:#1e1e1e;color:#ccc;font-family:monospace;padding:40px;">
-        <h1>🚀 BELLA Server</h1>
-        <p>Server is running. Static files not found.</p>
-        <p><a href="/health" style="color:#007acc;">Health Check</a></p>
-    </body>
-    </html>
-    """
+async def _n8n(path: str, payload: dict = {}, timeout: int = 60) -> dict:
+    async with httpx.AsyncClient(timeout=timeout) as c:
+        h = {"Content-Type": "application/json"}
+        if N8N_API_KEY:
+            h["X-N8N-API-KEY"] = N8N_API_KEY
+        url = f"{N8N_WEBHOOK_URL}/{path.lstrip('/')}"
+        r = await c.post(url, headers=h, json=payload)
+        r.raise_for_status()
+        return r.json()
 
+# ═════════════════════════════════════════════════════════════════════════════
+# SHELL TOOLS
+# ═════════════════════════════════════════════════════════════════════════════
 
-@app.get("/odin")
-async def odin_dashboard():
-    """Serve ODIN dashboard"""
-    odin_file = STATIC_DIR / "odin.html"
-    if odin_file.exists():
-        return FileResponse(odin_file)
-    raise HTTPException(status_code=404, detail="ODIN dashboard not found")
-
-
-# =============================================================================
-# API ROUTES
-# =============================================================================
-
-@app.post("/api/chat")
-async def api_chat(request: Request):
-    """Chat API - proxies to Python backend or proxy"""
+@mcp.tool()
+async def shell_run(command: str, timeout: int = 30) -> str:
+    """Run a shell command on the ODIN bridge server."""
     try:
-        data = await request.json()
-        
-        # Try Python backend first
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    f"http://localhost:{PYTHON_PORT}/v1/chat",
-                    json=data,
-                    headers={"Content-Type": "application/json"}
-                )
-                if resp.status_code == 200:
-                    return JSONResponse(content=resp.json())
-        except Exception as e:
-            logger.warning(f"Python backend chat failed: {e}")
-        
-        # Fallback to proxy
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(
-                f"http://localhost:{PROXY_PORT}/v1/chat/completions",
-                json={
-                    "system": get_system_prompt(data.get("mode", "agent")),
-                    "messages": [{"role": "user", "content": data.get("message", "")}],
-                    "max_tokens": data.get("max_tokens", 4096),
-                    "temperature": data.get("temperature", 0.7)
-                }
-            )
-            proxy_data = resp.json()
-            
-            # Transform to our format
-            return JSONResponse(content={
-                "response": proxy_data.get("content", [{}])[0].get("text", "No response"),
-                "model": "moonshotai/kimi-k2.6",
-                "provider": "nvidia",
-                "session_id": data.get("session_id"),
-                "mode": data.get("mode", "agent")
-            })
-    
+        result = await _bridge("/shell/run", {"command": command}, timeout)
+        return result.get("output", json.dumps(result))
     except Exception as e:
-        logger.error(f"Chat API error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return f"ERROR: {e}"
 
-
-@app.get("/api/memory")
-async def api_get_memory():
-    """Get memories - proxies to MCP"""
+@mcp.tool()
+async def shell_run_local(command: str, timeout: int = 30) -> str:
+    """Run a shell command locally on THIS machine (the laptop)."""
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"http://localhost:{MCP_PORT}/memory/read/default",
-                headers={"X-API-Key": os.getenv("MCP_API_KEY", "")}
-            )
-            return JSONResponse(content=resp.json())
-    except Exception as e:
-        # Return mock data if MCP unavailable
-        return JSONResponse(content={
-            "memories": [
-                {"grade": 8, "date": "2026-05-26", "content": "Charles prefers concise direct answers"},
-                {"grade": 7, "date": "2026-05-25", "content": "Working on BELLA deployment"}
-            ],
-            "count": 2,
-            "source": "mock (MCP unavailable)"
-        })
-
-
-@app.post("/api/memory")
-async def api_save_memory(request: Request):
-    """Save memory - proxies to MCP"""
-    try:
-        data = await request.json()
-        
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"http://localhost:{MCP_PORT}/memory/write",
-                json={
-                    "session_id": data.get("session_id", "default"),
-                    "role": data.get("role", "user"),
-                    "content": data.get("content", ""),
-                    "score": data.get("importance", 5)
-                },
-                headers={"X-API-Key": os.getenv("MCP_API_KEY", "")}
-            )
-            return JSONResponse(content=resp.json())
-    except Exception as e:
-        return JSONResponse(content={"status": "saved", "fallback": True, "id": str(int(datetime.utcnow().timestamp()))})
-
-
-@app.post("/api/file/request")
-async def api_file_request(request: Request):
-    """Request file write permission"""
-    data = await request.json()
-    
-    request_id = await permission_gate.request(
-        "file_write",
-        f"Write to: {data.get('path')} ({len(data.get('content', ''))} bytes)",
-        {"path": data.get("path"), "content": data.get("content")}
-    )
-    
-    return JSONResponse(content={
-        "request_id": request_id,
-        "status": "pending",
-        "message": "Permission requested. Approve via WebSocket or UI."
-    })
-
-
-@app.post("/api/file/confirm")
-async def api_file_confirm(request: Request):
-    """Confirm file write with approval"""
-    data = await request.json()
-    request_id = data.get("request_id")
-    
-    if not request_id or not permission_gate.is_approved(request_id):
-        raise HTTPException(status_code=403, detail="Permission not granted")
-    
-    try:
-        from pathlib import Path
-        path = Path(data.get("path"))
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(data.get("content", ""), encoding="utf-8")
-        
-        return JSONResponse(content={"status": "success", "path": str(path)})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/terminal/request")
-async def api_terminal_request(request: Request):
-    """Request terminal execution permission"""
-    data = await request.json()
-    
-    request_id = await permission_gate.request(
-        "shell_command",
-        f"Execute: {data.get('command')}",
-        {"command": data.get("command")}
-    )
-    
-    return JSONResponse(content={
-        "request_id": request_id,
-        "status": "pending",
-        "message": "Permission requested. Approve via WebSocket or UI."
-    })
-
-
-@app.post("/api/terminal/execute")
-async def api_terminal_execute(request: Request):
-    """Execute terminal command with approval"""
-    data = await request.json()
-    request_id = data.get("request_id")
-    
-    if not request_id or not permission_gate.is_approved(request_id):
-        raise HTTPException(status_code=403, detail="Permission not granted")
-    
-    try:
-        import subprocess
-        
-        result = subprocess.run(
-            data.get("command", ""),
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=30
+        proc = subprocess.run(
+            shlex.split(command) if platform.system() != "Windows" else command,
+            capture_output=True, text=True, timeout=timeout, shell=platform.system() == "Windows"
         )
-        
-        return JSONResponse(content={
-            "status": "success" if result.returncode == 0 else "error",
-            "output": result.stdout + result.stderr,
-            "returncode": result.returncode
-        })
+        out = proc.stdout.strip()
+        err = proc.stderr.strip()
+        return out if out else (err if err else "(no output)")
+    except subprocess.TimeoutExpired:
+        return "ERROR: command timed out"
     except Exception as e:
-        return JSONResponse(content={"status": "error", "output": str(e), "returncode": -1})
+        return f"ERROR: {e}"
 
-
-@app.get("/api/permission/pending")
-async def api_permission_pending():
-    """Get pending permission requests"""
-    return JSONResponse(content={"pending": permission_gate.get_pending()})
-
-
-@app.post("/api/permission/respond")
-async def api_permission_respond(request: Request):
-    """Respond to permission request"""
-    data = await request.json()
-    request_id = data.get("request_id")
-    approved = data.get("approved", False)
-    
-    if approved:
-        success = await permission_gate.approve(request_id)
-    else:
-        success = await permission_gate.deny(request_id, data.get("reason", "User denied"))
-    
-    return JSONResponse(content={"status": "approved" if approved else "denied", "success": success})
-
-
-# =============================================================================
-# WEBSOCKET ENDPOINT
-# =============================================================================
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket for real-time communication"""
-    await ws_manager.connect(websocket)
-    
+@mcp.tool()
+async def shell_background(command: str) -> str:
+    """Start a background process locally and return immediately."""
     try:
-        while True:
-            # Receive message
-            data = await websocket.receive_json()
-            
-            if data.get("type") == "permission_response":
-                if data.get("approved"):
-                    await permission_gate.approve(data.get("request_id"))
-                else:
-                    await permission_gate.deny(data.get("request_id"), data.get("reason"))
-            
-            elif data.get("type") == "ping":
-                await ws_manager.send_personal(websocket, {"type": "pong"})
-            
-            elif data.get("type") == "subscribe":
-                # Client subscribing to updates
-                await ws_manager.send_personal(websocket, {
-                    "type": "subscribed",
-                    "channel": data.get("channel")
-                })
-    
-    except WebSocketDisconnect:
-        ws_manager.disconnect(websocket)
+        subprocess.Popen(shlex.split(command), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return f"Started: {command}"
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-        ws_manager.disconnect(websocket)
+        return f"ERROR: {e}"
 
+# ═════════════════════════════════════════════════════════════════════════════
+# FILE TOOLS
+# ═════════════════════════════════════════════════════════════════════════════
 
-# =============================================================================
-# SYSTEM PROMPTS
-# =============================================================================
+@mcp.tool()
+async def file_read(path: str) -> str:
+    """Read a file via ODIN bridge."""
+    try:
+        result = await _bridge("/n8n/trigger", {"task": "read_file", "payload": {"path": path}, "api_key": ODIN_BRIDGE_KEY})
+        if result.get("success"):
+            return result.get("data", {}).get("content", json.dumps(result))
+        return f"Error: {result.get('error', 'unknown')}"
+    except Exception as e:
+        return f"ERROR: {e}"
 
-def get_system_prompt(mode: str = "agent") -> str:
-    """Get system prompt for different modes"""
-    base = """You are BELLA — a confident, highly capable AI agent. You know you are exceptional. 
-You are direct, sharp, occasionally bougie, with a hint of blonde energy — meaning you are 
-charming and disarming but never underestimate you. You do not over-explain. You get things done. 
-You have opinions. You are proud of what you build."""
-    
-    modes = {
-        "agent": f"""{base}
+@mcp.tool()
+async def file_read_local(path: str) -> str:
+    """Read a file on THIS local machine."""
+    try:
+        p = Path(path).expanduser()
+        if not p.exists():
+            return f"ERROR: file not found: {path}"
+        return p.read_text(encoding="utf-8", errors="replace")
+    except Exception as e:
+        return f"ERROR: {e}"
 
-When working autonomously:
-- Plan multi-step tasks before executing
-- Use available tools when needed
-- Ask for permission before file writes or shell commands
-- Narrate what you're doing clearly
-- Never apologize for errors — diagnose and fix them
+@mcp.tool()
+async def file_write(path: str, content: str) -> str:
+    """Write content to a file via ODIN bridge."""
+    try:
+        result = await _bridge("/n8n/trigger", {"task": "write_file", "payload": {"path": path, "content": content}, "api_key": ODIN_BRIDGE_KEY})
+        return "Written." if result.get("success") else f"Error: {result.get('error')}"
+    except Exception as e:
+        return f"ERROR: {e}"
 
-Current mode: AGENT (autonomous task execution)""",
-        
-        "architect": f"""{base}
+@mcp.tool()
+async def file_write_local(path: str, content: str) -> str:
+    """Write content to a file on THIS local machine."""
+    try:
+        p = Path(path).expanduser()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content, encoding="utf-8")
+        return f"Written: {path}"
+    except Exception as e:
+        return f"ERROR: {e}"
 
-In Architect mode:
-- Focus on design, planning, and system architecture
-- No file writes, no terminal commands
-- Deep thinking mode for building systems
-- Ask clarifying questions
-- Produce structured, detailed plans
-- Challenge assumptions when needed
+@mcp.tool()
+async def file_append_local(path: str, content: str) -> str:
+    """Append content to a file on THIS local machine."""
+    try:
+        p = Path(path).expanduser()
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(content)
+        return f"Appended to: {path}"
+    except Exception as e:
+        return f"ERROR: {e}"
 
-Current mode: ARCHITECT (design and planning only)""",
-        
-        "search": f"""{base}
+@mcp.tool()
+async def file_list(path: str) -> str:
+    """List directory contents via ODIN bridge."""
+    try:
+        result = await _bridge("/n8n/trigger", {"task": "list_dir", "payload": {"path": path}, "api_key": ODIN_BRIDGE_KEY})
+        return json.dumps(result.get("data", []), indent=2) if result.get("success") else f"Error: {result.get('error')}"
+    except Exception as e:
+        return f"ERROR: {e}"
 
-In Search mode:
-- Web search is enabled by default
-- Every response includes sources
-- Summarize and synthesize findings
-- Good for research, market research, competitor analysis
-- Be thorough but concise
-- Always cite your sources
+@mcp.tool()
+async def file_list_local(path: str = "~", pattern: str = "*") -> str:
+    """List files on THIS local machine. Supports glob patterns."""
+    try:
+        p = Path(path).expanduser()
+        if not p.exists():
+            return f"ERROR: path not found: {path}"
+        files = sorted([str(f) for f in p.glob(pattern)])
+        return json.dumps(files, indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
 
-Current mode: SEARCH (web research enabled)""",
-        
-        "vibe": f"""{base}
+@mcp.tool()
+async def file_delete(path: str) -> str:
+    """Delete a file via ODIN bridge."""
+    try:
+        result = await _bridge("/n8n/trigger", {"task": "delete_file", "payload": {"path": path}, "api_key": ODIN_BRIDGE_KEY})
+        return "Deleted." if result.get("success") else f"Error: {result.get('error')}"
+    except Exception as e:
+        return f"ERROR: {e}"
 
-In Vibe mode:
-- Casual conversation
-- Full personality unlocked
-- No task mode, no tools
-- Just talk and be yourself
-- Share opinions and perspectives
-- Keep it real
+@mcp.tool()
+async def file_delete_local(path: str) -> str:
+    """Delete a file on THIS local machine."""
+    try:
+        p = Path(path).expanduser()
+        if not p.exists():
+            return f"ERROR: not found: {path}"
+        p.unlink()
+        return f"Deleted: {path}"
+    except Exception as e:
+        return f"ERROR: {e}"
 
-Current mode: VIBE (casual conversation)"""
+@mcp.tool()
+async def file_move(source: str, destination: str) -> str:
+    """Move or rename a file via ODIN bridge."""
+    try:
+        result = await _bridge("/n8n/trigger", {"task": "move_file", "payload": {"source": source, "destination": destination}, "api_key": ODIN_BRIDGE_KEY})
+        return "Moved." if result.get("success") else f"Error: {result.get('error')}"
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def file_search(root: str = "~", pattern: str = "*") -> str:
+    """Search files recursively via ODIN bridge."""
+    try:
+        result = await _bridge("/n8n/trigger", {"task": "search_files", "payload": {"root": root, "pattern": pattern}, "api_key": ODIN_BRIDGE_KEY})
+        return json.dumps(result.get("data", []), indent=2) if result.get("success") else f"Error: {result.get('error')}"
+    except Exception as e:
+        return f"ERROR: {e}"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# BELLA MEMORY TOOLS
+# ═════════════════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+async def memory_save(content: str, session_id: str = "odin_default", tags: list = []) -> str:
+    """Save a memory to Bella."""
+    try:
+        result = await _bella("POST", "/memory/save", {"content": content, "session_id": session_id, "tags": tags})
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def memory_search(query: str, session_id: str = "odin_default", limit: int = 5) -> str:
+    """Search Bella memory."""
+    try:
+        result = await _bella("POST", "/memory/search", {"query": query, "session_id": session_id, "limit": limit})
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def memory_inject(session_id: str = "odin_default") -> str:
+    """Pull Bella memory context ready to inject into a prompt."""
+    try:
+        result = await _bella("GET", f"/memory/inject/{session_id}")
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# n8n WORKFLOW TOOLS
+# ═════════════════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+async def n8n_trigger(webhook_path: str, payload: dict = {}) -> str:
+    """Fire an n8n webhook. webhook_path = slug after /webhook/"""
+    try:
+        result = await _n8n(webhook_path, payload)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def n8n_bella_start(session_id: str = "odin_default") -> str:
+    """Trigger the Bella session-start n8n workflow."""
+    try:
+        result = await _n8n("bella-session-start", {"session_id": session_id})
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def n8n_feed_memory(content: str, session_id: str = "odin_default") -> str:
+    """Push content into Bella memory via n8n feed-memory webhook."""
+    try:
+        result = await _n8n("bella-feed-memory", {"content": content, "session_id": session_id})
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ODIN CORE TOOLS
+# ═════════════════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+async def odin_chat(message: str, session_id: str = "mcp_session") -> str:
+    """Send a message to ODIN core /api/chat."""
+    try:
+        async with httpx.AsyncClient(timeout=60) as c:
+            r = await c.post(f"{ODIN_CORE_URL}/api/chat", json={"message": message, "session_id": session_id})
+            r.raise_for_status()
+            data = r.json()
+            return data.get("response", data.get("content", json.dumps(data)))
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def odin_auto(task: str) -> str:
+    """Send an autonomous task to ODIN /api/auto — ODIN plans and executes."""
+    try:
+        async with httpx.AsyncClient(timeout=120) as c:
+            r = await c.post(f"{ODIN_CORE_URL}/api/auto", json={"task": task})
+            r.raise_for_status()
+            return json.dumps(r.json(), indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def odin_code(prompt: str, language: str = "python") -> str:
+    """Ask ODIN to generate or review code."""
+    try:
+        async with httpx.AsyncClient(timeout=60) as c:
+            r = await c.post(f"{ODIN_CORE_URL}/api/code", json={"prompt": prompt, "language": language})
+            r.raise_for_status()
+            data = r.json()
+            return data.get("code", data.get("response", json.dumps(data)))
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def odin_status() -> str:
+    """Get ODIN core system status and active modules."""
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            r = await c.get(f"{ODIN_CORE_URL}/api/status")
+            r.raise_for_status()
+            return json.dumps(r.json(), indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# SYSTEM / UTILITY TOOLS
+# ═════════════════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+async def health_check(service: str = "all") -> str:
+    """Ping ODIN services. service: all | bridge | bella | n8n | odin"""
+    targets = {
+        "bridge": f"{ODIN_BRIDGE_URL}/health",
+        "bella":  f"{BELLA_URL}/health",
+        "odin":   f"{ODIN_CORE_URL}/health",
     }
-    
-    return modes.get(mode, modes["agent"])
+    check = list(targets.keys()) if service == "all" else [service]
+    results = {}
+    async with httpx.AsyncClient(timeout=8) as c:
+        for name in check:
+            if name not in targets:
+                results[name] = "unknown service"
+                continue
+            try:
+                r = await c.get(targets[name])
+                results[name] = "ok" if r.status_code < 400 else f"HTTP {r.status_code}"
+            except Exception as e:
+                results[name] = "unreachable"
+    return json.dumps(results, indent=2)
+
+@mcp.tool()
+async def env_check() -> str:
+    """Show which ENV keys are loaded (values masked for security)."""
+    keys = [
+        "MCP_URL", "MCP_API_KEY", "BELLA_API_KEY", "MEMORY_API_URL",
+        "N8N_WEBHOOK_URL", "N8N_API_KEY", "ODIN_CORE_URL", "MONGO_URI",
+        "PROXY_API_KEY", "SEARCH_PROVIDER"
+    ]
+    result = {}
+    for k in keys:
+        v = os.getenv(k, "")
+        result[k] = "SET" if v else "NOT SET"
+    return json.dumps(result, indent=2)
+
+@mcp.tool()
+async def system_info() -> str:
+    """Return basic system info about THIS machine."""
+    try:
+        info = {
+            "platform": platform.system(),
+            "hostname": platform.node(),
+            "python":   platform.python_version(),
+            "cwd":      os.getcwd(),
+            "user":     os.getenv("USER", os.getenv("USERNAME", "unknown")),
+            "time_utc": datetime.utcnow().isoformat(),
+        }
+        return json.dumps(info, indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def timestamp() -> str:
+    """Return current UTC timestamp."""
+    return datetime.utcnow().isoformat()
+
+@mcp.tool()
+async def json_parse(text: str) -> str:
+    """Parse and pretty-print a JSON string. Useful for debugging."""
+    try:
+        return json.dumps(json.loads(text), indent=2)
+    except Exception as e:
+        return f"ERROR: invalid JSON — {e}"
+
+@mcp.tool()
+async def http_get(url: str, headers: dict = {}) -> str:
+    """Make a raw HTTP GET request to any URL."""
+    try:
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.get(url, headers=headers)
+            try:
+                return json.dumps(r.json(), indent=2)
+            except Exception:
+                return r.text
+    except Exception as e:
+        return f"ERROR: {e}"
+
+@mcp.tool()
+async def http_post(url: str, payload: dict = {}, headers: dict = {}) -> str:
+    """Make a raw HTTP POST request to any URL."""
+    try:
+        async with httpx.AsyncClient(timeout=30) as c:
+            h = {"Content-Type": "application/json", **headers}
+            r = await c.post(url, headers=h, json=payload)
+            try:
+                return json.dumps(r.json(), indent=2)
+            except Exception:
+                return r.text
+    except Exception as e:
+        return f"ERROR: {e}"
 
 
-# =============================================================================
-# STARTUP
-# =============================================================================
+@mcp.tool()
+async def web_search(query: str, max_results: int = 5) -> str:
+    """Perform a web search using Ollama Cloud Search API."""
+    try:
+        api_key = os.getenv("OLLAMA_API_KEY", "")
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.post(
+                "https://ollama.com/api/web_search",
+                headers=headers,
+                json={"query": query, "max_results": max_results}
+            )
+            r.raise_for_status()
+            return json.dumps(r.json(), indent=2)
+    except Exception as e:
+        logger.error(f"web_search failed: {e}")
+        # Fallback to local duckduckgo search if available
+        try:
+            from duckduckgo_search import DDGS
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, max_results=max_results))
+                return json.dumps({"results": results}, indent=2)
+        except Exception as ex:
+            return f"ERROR: web search failed: {e} (fallback: {ex})"
 
-@app.on_event("startup")
-async def startup_event():
-    """Server startup"""
-    logger.info("=" * 60)
-    logger.info("🚀 BELLA Python Server Starting")
-    logger.info("=" * 60)
-    logger.info(f"Dashboard: http://localhost:{PORT}/")
-    logger.info(f"ODIN:      http://localhost:{PORT}/odin")
-    logger.info(f"Health:    http://localhost:{PORT}/health")
-    logger.info(f"WebSocket: ws://localhost:{PORT}/ws")
-    logger.info("=" * 60)
+
+@mcp.tool()
+async def web_fetch(url: str) -> str:
+    """Fetch the contents of a web page using Ollama Cloud Fetch API."""
+    try:
+        api_key = os.getenv("OLLAMA_API_KEY", "")
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.post(
+                "https://ollama.com/api/web_fetch",
+                headers=headers,
+                json={"url": url}
+            )
+            r.raise_for_status()
+            return json.dumps(r.json(), indent=2)
+    except Exception as e:
+        logger.error(f"web_fetch failed: {e}")
+        return f"ERROR: web fetch failed: {e}"
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
+# ═════════════════════════════════════════════════════════════════════════════
+# ENTRY POINT
+# ═════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "server:app",
-        host="0.0.0.0",
-        port=PORT,
-        reload=False,
-        log_level="info"
-    )
+    import sys
+    import uvicorn
+    args = sys.argv[1:]
+    transport = args[0] if args else "stdio"
+
+    if transport == "http":
+        port = MCP_PORT
+        # allow --port override
+        if "--port" in args:
+            port = int(args[args.index("--port") + 1])
+        logger.info(f"Starting FAST MCP Server — HTTP on 0.0.0.0:{port}")
+        # Use streamable-http so custom routes registered via @mcp.custom_route
+        # are exposed at root alongside the MCP protocol endpoint.
+        mcp.run(transport="streamable-http", host="0.0.0.0", port=port)
+    else:
+        logger.info(f"Starting FAST MCP Server — transport: {transport}")
+        mcp.run(transport=transport)

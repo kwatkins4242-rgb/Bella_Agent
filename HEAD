@@ -1,1 +1,2 @@
-0000000000000000000000000000000000000000 a7bfc33dcbf7791d1adb27e55f902277e7081877 Keith Watkins <kwatkins@techhack101.com> 1780369699 -0700	commit (initial): Bella v2: new dashboard, brain.py, agent.py, memory API, Electron wrapper, MCP+n8n relocation
+0000000000000000000000000000000000000000 bfb40b06b419081b9f406db8ed7a690871431c71 Keith Watkins <techhack42@proton.me> 1782407436 -0500	commit (initial): feat: ODIN AI agent — initial commit
+bfb40b06b419081b9f406db8ed7a690871431c71 55095c799c2ba18251a2527b9410ecef372de2f9 Keith Watkins <techhack42@proton.me> 1782407858 -0500	commit: feat(gcp): Qwen3-30B GPU VM deployment + n8n workflow importer
